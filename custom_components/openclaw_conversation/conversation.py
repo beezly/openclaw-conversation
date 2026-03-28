@@ -10,7 +10,7 @@ import aiohttp
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import intent
+from homeassistant.helpers import area_registry as ar, device_registry as dr, intent
 from homeassistant.util import ulid
 
 from .const import (
@@ -18,8 +18,10 @@ from .const import (
     CONF_BASE_URL,
     CONF_MODEL,
     CONF_TIMEOUT,
+    CONF_VERIFY_SSL,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT,
+    DEFAULT_VERIFY_SSL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ class OpenClawConversationAgent(conversation.AbstractConversationAgent):
         self._api_key = entry.data[CONF_API_KEY]
         self._model = entry.data.get(CONF_MODEL, DEFAULT_MODEL)
         self._timeout = entry.data.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
+        self._verify_ssl = entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
         self._conversations: dict[str, list[dict]] = {}
 
     @property
@@ -54,15 +57,29 @@ class OpenClawConversationAgent(conversation.AbstractConversationAgent):
         """Process a sentence."""
         conversation_id = user_input.conversation_id or ulid.ulid_now()
 
+        # Build system prompt
+        system_content = "You are a helpful home assistant."
+
+        if user_input.device_id:
+            device = dr.async_get(self.hass).async_get(user_input.device_id)
+            if device and device.area_id:
+                area = ar.async_get(self.hass).async_get_area(device.area_id)
+                if area:
+                    system_content += f" The request came from the {area.name}."
+
+        if user_input.extra_system_prompt:
+            system_content += f"\n{user_input.extra_system_prompt}"
+
         # Get or create conversation history
         messages = self._conversations.get(conversation_id, [])
 
         # Add user message
         messages.append({"role": "user", "content": user_input.text})
 
-        # Call OpenClaw
+        # Call OpenClaw with system prompt prepended
         try:
-            response_text = await self._call_openclaw(messages)
+            full_messages = [{"role": "system", "content": system_content}] + messages
+            response_text = await self._call_openclaw(full_messages)
         except Exception as err:
             _LOGGER.error("Error calling OpenClaw: %s", err)
             response_text = "Erreur de communication avec OpenClaw."
@@ -101,6 +118,7 @@ class OpenClawConversationAgent(conversation.AbstractConversationAgent):
                 f"{self._base_url}/v1/chat/completions",
                 json=payload,
                 headers=headers,
+                ssl=None if self._verify_ssl else False,
             ) as resp:
                 if resp.status != 200:
                     body = await resp.text()

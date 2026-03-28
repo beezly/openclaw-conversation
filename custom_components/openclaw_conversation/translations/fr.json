@@ -9,7 +9,8 @@
           "base_url": "URL du Gateway OpenClaw",
           "api_key": "Token API",
           "model": "Modèle",
-          "timeout": "Timeout (secondes)"
+          "timeout": "Timeout (secondes)",
+          "verify_ssl": "Vérifier le certificat SSL"
         }
       }
     },

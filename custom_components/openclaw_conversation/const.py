@@ -6,7 +6,9 @@ CONF_BASE_URL = "base_url"
 CONF_API_KEY = "api_key"
 CONF_MODEL = "model"
 CONF_TIMEOUT = "timeout"
+CONF_VERIFY_SSL = "verify_ssl"
 
 DEFAULT_MODEL = "openclaw"
 DEFAULT_TIMEOUT = 30
 DEFAULT_BASE_URL = "http://127.0.0.1:18789"
+DEFAULT_VERIFY_SSL = True

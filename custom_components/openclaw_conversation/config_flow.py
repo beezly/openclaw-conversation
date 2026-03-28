@@ -13,9 +13,11 @@ from .const import (
     CONF_BASE_URL,
     CONF_MODEL,
     CONF_TIMEOUT,
+    CONF_VERIFY_SSL,
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT,
+    DEFAULT_VERIFY_SSL,
     DOMAIN,
 )
 
@@ -36,6 +38,7 @@ class OpenClawConversationConfigFlow(
             api_key = user_input[CONF_API_KEY]
 
             # Test connection
+            verify_ssl = user_input.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
             try:
                 async with aiohttp.ClientSession() as session:
                     headers = {
@@ -53,6 +56,7 @@ class OpenClawConversationConfigFlow(
                         json=payload,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=15),
+                        ssl=None if verify_ssl else False,
                     ) as resp:
                         if resp.status == 401:
                             errors["base"] = "invalid_auth"
@@ -76,6 +80,7 @@ class OpenClawConversationConfigFlow(
                         CONF_TIMEOUT: user_input.get(
                             CONF_TIMEOUT, DEFAULT_TIMEOUT
                         ),
+                        CONF_VERIFY_SSL: verify_ssl,
                     },
                 )
 
@@ -96,6 +101,9 @@ class OpenClawConversationConfigFlow(
                     vol.Optional(
                         CONF_TIMEOUT, default=DEFAULT_TIMEOUT
                     ): vol.Coerce(int),
+                    vol.Optional(
+                        CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL
+                    ): bool,
                 }
             ),
             errors=errors,
